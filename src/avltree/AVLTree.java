@@ -1,5 +1,5 @@
 package avltree;
 
-public class AVLTree {
+public class AVLTree<T extends Comparable<T>> extends BinarySearchTree<T> {
 
 }
