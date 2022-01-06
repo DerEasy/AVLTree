@@ -1,6 +1,8 @@
 package avltree;
 
+import java.lang.reflect.Array;
 import java.util.Arrays;
+import java.util.LinkedList;
 import java.util.Random;
 
 public class BinarySearchTree<T extends Comparable<T>> {
@@ -16,8 +18,12 @@ public class BinarySearchTree<T extends Comparable<T>> {
     private record NodeBranch<T extends Comparable<T>>
             (Node<T> node, Node<T> parent, int branch) {}
 
-    private boolean doesNotExist(NodeBranch<T> nodeBranch) {
+    private boolean notExists(NodeBranch<T> nodeBranch) {
         return nodeBranch == null;
+    }
+
+    private boolean exists(Node<T> node) {
+        return node != null;
     }
 
     /**
@@ -45,33 +51,68 @@ public class BinarySearchTree<T extends Comparable<T>> {
         size = 0;
     }
 
-    private void print(Node<T> node) {
-        if (node == null)
-            return;
-
-        print(node.left());
-        System.out.println(node.value());
-        print(node.right());
+    /**
+     * Creates a String that contains all elements of this tree
+     * inorder / in ascending order.
+     * @return A String containing all elements in ascending order.
+     */
+    public String toString() {
+        return Arrays.toString(toArray());
     }
 
-    public void print() {
-        print(root);
+    /**
+     * Puts all elements of this tree in the given array and
+     * resizes the array as needed.
+     * The elements are ordered "inorder" / in ascending order.
+     * This method never returns null, instead it will return
+     * the given array unchanged if this tree is empty.
+     * @param array The array in which the elements are to be
+     *               stored in if it is big enough. Else a new
+     *               array of the same type will be created.
+     * @return An array of all elements in ascending order or
+     * the same unchanged array that was passed to this method
+     * if the tree is empty.
+     */
+    @SuppressWarnings("unchecked")
+    public T[] toArray(T[] array) {
+        if (isEmpty())
+            return array;
+        if (array.length < size)
+            array = (T[]) Array.newInstance(
+                    array.getClass().getComponentType(), size
+            );
+
+        MinimalStack<Node<T>> stack = new MinimalStack<>();
+        Node<T> node = root;
+
+        for (int i = 0; stack.notEmpty() || exists(node);) {
+            if (exists(node)) {
+                stack.push(node);
+                node = node.left();}
+            else {
+                node = stack.pop();
+                array[i++] = node.value();
+                node = node.right();}
+        }
+
+        return array;
     }
 
-    //Incomplete
-    private void toArray(Object[] result, int index, Node<T> node) {
-        if (node == null)
-            return;
+    /**
+     * Puts all elements of this tree in a newly assigned array.
+     * The elements are ordered "inorder" / in ascending order.
+     * @return An array of all elements in ascending order or
+     * null if the tree is empty.
+     */
+    @SuppressWarnings("unchecked")
+    public T[] toArray() {
+        if (isEmpty()) return null;
 
-        toArray(result, index, node.left());
-        result[index] = node.value();
-        toArray(result, index, node.right());
-    }
+        T[] result = (T[]) Array.newInstance(
+                root.value().getClass(), size
+        );
 
-    public Object[] toArray() {
-        Object[] result = new Object[size];
-        toArray(result, 0, root);
-        return result;
+        return toArray(result);
     }
 
     /**
@@ -82,7 +123,7 @@ public class BinarySearchTree<T extends Comparable<T>> {
         if (isEmpty()) return null;
 
         Node<T> node = root;
-        while (node.right() != null)
+        while (exists(node.right()))
             node = node.right();
 
         return node.value();
@@ -96,7 +137,7 @@ public class BinarySearchTree<T extends Comparable<T>> {
         if (isEmpty()) return null;
 
         Node<T> node = root;
-        while (node.left() != null)
+        while (exists(node.left()))
             node = node.left();
 
         return node.value();
@@ -149,7 +190,7 @@ public class BinarySearchTree<T extends Comparable<T>> {
     private NodeBranch<T> searchNode(T value) {
         if (isEmpty())
             return null;
-        if (!doesNotExist(recentNode) && recentNode.node.value() == value)
+        if (!notExists(recentNode) && recentNode.node.value() == value)
             return recentNode;
 
         Node<T> node = root;
@@ -194,7 +235,7 @@ public class BinarySearchTree<T extends Comparable<T>> {
      */
     public T search(T value) {
         NodeBranch<T> result = searchNode(value);
-        if (doesNotExist(result))
+        if (notExists(result))
             return null;
         else {
             recentNode = result;
@@ -212,7 +253,7 @@ public class BinarySearchTree<T extends Comparable<T>> {
      */
     public boolean has(T value) {
         NodeBranch<T> nodeBranch = searchNode(value);
-        if (doesNotExist(nodeBranch))
+        if (notExists(nodeBranch))
             return false;
         else {
             recentNode = nodeBranch;
@@ -247,12 +288,13 @@ public class BinarySearchTree<T extends Comparable<T>> {
      * Deletes the value from the tree.
      * @param value The value you want to delete.
      * @return True if the value was found in the tree.
+     * False if the value does not exist.
      */
     public boolean delete(T value) {
         if (isEmpty()) return false;
 
         NodeBranch<T> deletable = searchNode(value);
-        if (doesNotExist(deletable))
+        if (notExists(deletable))
             return false;
 
         Node<T> node = deletable.node;
@@ -314,6 +356,39 @@ public class BinarySearchTree<T extends Comparable<T>> {
         return true;
     }
 
+    /**
+     * Deletes the old value from the tree and inserts a node
+     * with the new value instead. If the old value is not
+     * found in the tree, this method does nothing.
+     * @param oldValue The value to be replaced.
+     * @param newValue The value of the potential element to
+     *                 be inserted.
+     * @return False if the old value does not exist.
+     */
+    public boolean replace(T oldValue, T newValue) {
+        if (!delete(oldValue))
+            return false;
+        else
+            insert(newValue);
+        return true;
+    }
+
+    /**
+     * Deletes the old value from the tree if it exists and
+     * inserts a node with the new value. This method will
+     * still insert even if the old value is not found.
+     * @param oldValue The potential value to be replaced.
+     * @param newValue The value of the element to be inserted.
+     * @return The return value of the
+     * {@link #insert(Comparable)} method. That is, whether
+     * the value has been inserted (True) or if it already
+     * exists in the tree (False).
+     */
+    public boolean replaceOrInsert(T oldValue, T newValue) {
+        delete(oldValue);
+        return insert(newValue);
+    }
+
     public static void main(String[] args) {
         BinarySearchTree<Integer> b = new BinarySearchTree<>();
 
@@ -328,6 +403,6 @@ public class BinarySearchTree<T extends Comparable<T>> {
         b.insert(14);
         b.insert(19);
 
-        System.out.println(Arrays.toString(b.toArray()));
+        System.out.println(b);
     }
 }
